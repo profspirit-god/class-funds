@@ -1,5 +1,5 @@
 /* ====== EDIT THESE TWO (Supabase > Project Settings > API). The anon key is public by design. ====== */
-const SUPA_URL = "https://jhvmbtfpcdfiazhqufdq.supabase.co/rest/v1/",
+const SUPA_URL = "https://jhvmbtfpcdfiazhqufdq.supabase.co",
   SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impodm1idGZwY2RmaWF6aHF1ZmRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3ODQ3NDEsImV4cCI6MjExMDM2MDc0MX0.GJzSEagna541i8VqDqc_Y7g92uv79XO3t1gKCpNwrh8";
 /* ================================================================================================= */
 const LABELS = [
