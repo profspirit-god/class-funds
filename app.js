@@ -2,7 +2,9 @@
 const SUPA_URL='https://jhvmbtfpcdfiazhqufdq.supabase.co', SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impodm1idGZwY2RmaWF6aHF1ZmRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3ODQ3NDEsImV4cCI6MjExMDM2MDc0MX0.GJzSEagna541i8VqDqc_Y7g92uv79XO3t1gKCpNwrh8';
 /* ================================================================================================= */
 const LABELS=['July class work','August class work','September class work','Event Management – Initial','Event Management – Additional','Membership Fee','Activity Fee','Intrams Day 1 Laro ng Lahi','Intrams Day 2 Laro ng Lahi'];
-const FEE_DUES=[40,20,50,50]; // amount every student must pay: Membership, Activity, Intrams Day 1, Intrams Day 2 (change if wrong)
+const FEE_DUES=[40,20]; // Membership, Activity (change if wrong)
+// Intrams amount depends on the attendance column: Both = 0, Log In/Out Only = 25, Absent = 50, blank = not shown
+const intramsDue=a=>{a=String(a||'').toLowerCase();return/both/.test(a)?0:/only/.test(a)?25:/absent/.test(a)?50:null};
 const EVENT_DUES=[50,25]; // amount every student must pay for the two event columns
 const db=supabase.createClient(SUPA_URL,SUPA_KEY);
 const $=s=>document.querySelector(s), S={tab:'home',online:0,view:null};
@@ -47,7 +49,7 @@ function card(d){
   const s=d.student;if(!s)return`<div class="panel">No record found for that ID. Ask the treasurer to check it.</div>`;
   const its=(s.items||[]).filter(i=>!(d.hidden||[]).includes(i.l)),bal=i=>Math.max(i.due-i.paid,0),tot=its.reduce((a,i)=>a+bal(i),0);
   return`${d.announcement?`<div class="note">${esc(d.announcement)}</div>`:''}<div class="hero"><span class="muted">${esc(s.name)} · ${esc(s.sid)}</span><div class="big">${tot?php(tot):'All settled'}</div><span class="muted">${tot?'Amount you still need to pay':'Nothing to pay right now'}${d.as_of?' · as of '+esc(d.as_of):''}</span></div>
-  ${its.map(i=>`<details class="item"><summary><span>${esc(i.l)}</span><b class="${bal(i)?'owe':'ok'}">${bal(i)?php(bal(i)):'Paid'}</b>${ic('chev',16)}</summary><dl><dt>Amount to pay</dt><dd>${php(i.due)}</dd><dt>Paid</dt><dd>${php(i.paid)}</dd><dt>Remaining</dt><dd>${php(bal(i))}</dd>${d.dates?.[i.l]?`<dt>Due date</dt><dd>${esc(d.dates[i.l])}</dd>`:''}</dl></details>`).join('')}`;
+  ${its.map(i=>`<details class="item"><summary><span>${esc(i.l)}</span><b class="${bal(i)?'owe':'ok'}">${bal(i)?php(bal(i)):(i.due?'Paid':'Not required')}</b>${ic('chev',16)}</summary><dl><dt>Amount to pay</dt><dd>${php(i.due)}</dd><dt>Paid</dt><dd>${php(i.paid)}</dd><dt>Remaining</dt><dd>${php(bal(i))}</dd>${d.dates?.[i.l]?`<dt>Due date</dt><dd>${esc(d.dates[i.l])}</dd>`:''}</dl></details>`).join('')}`;
 }
 async function home(){
   const m=$('#main');m.innerHTML='<p class="muted">Loading…</p>';
@@ -97,7 +99,8 @@ async function upload(f){
   const out=[],skip=[];
   for(const r of R.slice(3,80)){if(!r[2])continue;const sid=String(r[1]||'').replace(/\D/g,'');if(!sid){skip.push(r[2]);continue}
     const it=[[6,7,0],[10,11,1],[14,15,2]].filter(([d])=>r[d]!=null&&r[d]!=='').map(([d,p,i])=>({l:LABELS[i],due:+r[d],paid:+r[p]||0}));
-    [18,19,20,22].forEach((c,i)=>it.push({l:LABELS[5+i],due:FEE_DUES[i],paid:+r[c]||0}));
+    [18,19].forEach((c,i)=>it.push({l:LABELS[5+i],due:FEE_DUES[i],paid:+r[c]||0}));
+    [[20,21,7],[22,23,8]].forEach(([c,a,k])=>{const d=intramsDue(r[a]);if(d!==null)it.push({l:LABELS[k],due:d,paid:+r[c]||0})});
     [24,25].forEach((c,i)=>it.push({l:LABELS[3+i],due:EVENT_DUES[i],paid:+r[c]||0}));out.push({sid,sid_show:String(r[1]),name:r[2],status:r[3],items:it})}
   let e=(await db.from('cf_students').delete().neq('sid','')).error;if(!e)e=(await db.from('cf_students').insert(out)).error;
   if(e)return o.textContent='Upload failed: '+e.message;
