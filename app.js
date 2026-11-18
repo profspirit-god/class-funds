@@ -1,10 +1,12 @@
 /* ====== EDIT THESE TWO (Supabase > Project Settings > API). The anon key is public by design. ====== */
 const SUPA_URL='https://jhvmbtfpcdfiazhqufdq.supabase.co', SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impodm1idGZwY2RmaWF6aHF1ZmRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3ODQ3NDEsImV4cCI6MjExMDM2MDc0MX0.GJzSEagna541i8VqDqc_Y7g92uv79XO3t1gKCpNwrh8';
 /* ================================================================================================= */
-const LABELS=['July class work','August class work','September class work','Event Management – Initial','Event Management – Additional','Membership Fee','Activity Fee','Intrams Day 1 Laro ng Lahi','Intrams Day 2 Laro ng Lahi'];
+const LABELS=['July class work','August class work','September class work','ESO Membership Initial','ESO Membership Add','CBMA Membership','Activity Fee','Intrams Day 1 Laro ng Lahi','Intrams Day 2 Laro ng Lahi'];
 const FEE_DUES=[40,20]; // Membership, Activity (change if wrong)
 // Intrams amount depends on the attendance column: Both = 0, Log In/Out Only = 25, Absent = 50, blank = not shown
 const intramsDue=a=>{a=String(a||'').toLowerCase();return/both/.test(a)?0:/only/.test(a)?25:/absent/.test(a)?50:null};
+const GROUPS={CBMA:[LABELS[5],LABELS[6],LABELS[7],LABELS[8]],ESO:[LABELS[3],LABELS[4]]},grpOf=l=>Object.keys(GROUPS).find(g=>GROUPS[g].includes(l));
+const ALIAS={'CBMA Membership':'Membership Fee','ESO Membership Initial':'Event Management – Initial','ESO Membership Add':'Event Management – Additional'},RN=Object.fromEntries(Object.entries(ALIAS).map(([n,o])=>[o,n]));
 const EVENT_DUES=[50,25]; // amount every student must pay for the two event columns
 const BUL='00000000-0000-0000-0000-00000000b011',ROLES=['visitor','student','officer','admin'];
 const PERMS=[['chat','Chat'],['officer_dash','Officer'],['data_export','Export'],['data_import','Import'],['manage_roles','Roles'],['record_payments','Record'],['paid_list','Paid list'],['remit','Remit']];
@@ -13,9 +15,14 @@ const $=s=>document.querySelector(s),S={tab:'home',online:0,view:null,perms:[],o
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const php=n=>'₱'+Number(n||0).toLocaleString('en-PH'),has=p=>S.perms.includes(p),isNet=e=>/fetch|network|load failed|offline/i.test(e?.message||'');
 const ls={g:k=>{try{return JSON.parse(localStorage.getItem('cf_'+k))}catch{return null}},s:(k,v)=>{try{localStorage.setItem('cf_'+k,JSON.stringify(v))}catch{}}};
-const I={menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L3 20l1-4.6A8 8 0 1 1 21 12z"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',chev:'<path d="M6 9l6 6 6-6"/>',send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',dl:'<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/>',off:'<path d="M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8a15 15 0 0 0-9-3.7M5 12.9a10 10 0 0 1 5-2.7M19 12.9a10 10 0 0 0-2.4-1.9M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M3 3l18 18"/>',rows:'<path d="M4 6h16M4 12h16M4 18h16"/>',pills:'<rect x="3" y="5" width="18" height="5" rx="2.5"/><rect x="3" y="14" width="13" height="5" rx="2.5"/>'};
+const I={menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L3 20l1-4.6A8 8 0 1 1 21 12z"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',chev:'<path d="M6 9l6 6 6-6"/>',send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',dl:'<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/>',off:'<path d="M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8a15 15 0 0 0-9-3.7M5 12.9a10 10 0 0 1 5-2.7M19 12.9a10 10 0 0 0-2.4-1.9M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M3 3l18 18"/>',rows:'<path d="M4 6h16M4 12h16M4 18h16"/>',pills:'<rect x="3" y="5" width="18" height="5" rx="2.5"/><rect x="3" y="14" width="13" height="5" rx="2.5"/>',check:'<path d="M5 12l5 5 9-10"/>'};
 const ic=(n,s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 let tt;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),3500)}
+const sk=(n=3)=>`<div class="skw">${Array.from({length:n},(_,i)=>`<div class="sk" style="height:${i?64:120}px"></div>`).join('')}</div>`;
+async function act(b,fn,busy='Saving…',done='Saved'){if(b.classList.contains('busy'))return;const t=b.innerHTML;b.classList.add('busy');b.innerHTML=`<i class="spin"></i>${busy}`;
+  try{const r=await fn();b.classList.remove('busy');b.classList.add('done');b.innerHTML=`${ic('check',18)}&nbsp;${done}`;setTimeout(()=>{b.classList.remove('done');b.innerHTML=t;delete b.dataset.ok},1300);return r}
+  catch(e){b.classList.remove('busy');b.classList.add('err');b.innerHTML=t;setTimeout(()=>b.classList.remove('err'),450);if(e?.message)toast(e.message)}}
+async function swr(key,fn,paint){const c=ls.g(key);if(c)paint(c.d);try{const r=await fn();if(r.error)throw r.error;ls.s(key,{t:Date.now(),d:r.data});if(!c||JSON.stringify(c.d)!==JSON.stringify(r.data))paint(r.data);S.stale=null;updOff()}catch(e){if(c&&(!navigator.onLine||isNet(e))){S.stale=c.t;updOff()}else if(!c)throw e;else toast(e.message)}}
 function theme(t){if(t)localStorage.setItem('theme',t);const v=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.theme=v;return v}
 const idOk=v=>/^\d{2}-?\d{5,6}$/.test(v.trim()),tm=t=>t?new Date(t).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'}):'sending…';
 /* Offline: every read is saved on the phone and shown when there is no signal */
@@ -54,7 +61,7 @@ function shell(){
   $('#bg').onclick=()=>$('#menu').hidden=!$('#menu').hidden;
   document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>go(b.dataset.t));updOff();go(S.tab);
 }
-function go(t){S.tab=t;$('#menu').hidden=true;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));window.scrollTo(0,0);({home,chat,help,officer,admin,settings})[t]()}
+function go(t){S.tab=t;$('#menu').hidden=true;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));window.scrollTo(0,0);const mm=$('#main');mm.classList.remove('view');void mm.offsetWidth;mm.classList.add('view');({home,chat,help,officer,admin,settings})[t]()}
 
 function card(d){
   const s=d.student;if(!s)return`<div class="panel">No record found for that ID. Ask the treasurer to check it.</div>`;
@@ -63,11 +70,10 @@ function card(d){
   ${its.map(i=>`<details class="item"><summary><span>${esc(i.l)}</span><b class="${bal(i)?'owe':'ok'}">${bal(i)?php(bal(i)):(i.due?'Paid':'Not required')}</b>${ic('chev',16)}</summary><dl><dt>Amount to pay</dt><dd>${php(i.due)}</dd><dt>Paid</dt><dd>${php(i.paid)}</dd><dt>Remaining</dt><dd>${php(bal(i))}</dd>${d.dates?.[i.l]?`<dt>Due date</dt><dd>${esc(d.dates[i.l])}</dd>`:''}</dl></details>`).join('')}`;
 }
 async function home(){
-  const m=$('#main'),k=S.view||S.sid;m.innerHTML='<p class="muted">Loading…</p>';let d;
-  try{if(S.view){const r=await db.rpc('cf_lookup',{p_sid:k});if(r.error)throw r.error;d=r.data}else d=await cached('home:'+k,()=>db.rpc('cf_lookup',{p_sid:k}))}catch(e){return m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
-  m.innerHTML=`<p class="hi">${S.view?'Classmate':'Hi, '+esc(S.name)}</p>${card(d)}<form id="sf" class="find"><input id="q" inputmode="numeric" placeholder="Classmate ID, e.g. 24-03177"><button class="btn">Find</button></form>${S.view?'<button class="link" id="me">Back to my balance</button>':''}`;
-  $('#sf').onsubmit=e=>{e.preventDefault();if(!idOk($('#q').value))return toast('ID format should look like 24-03177');S.view=$('#q').value;home()};
-  if(S.view)$('#me').onclick=()=>{S.view=null;home()};
+  const m=$('#main'),k=S.view||S.sid;m.innerHTML=sk(3);
+  const paint=d=>{if(S.tab!=='home'||(S.view||S.sid)!==k)return;m.innerHTML=`<p class="hi">${S.view?'Classmate':'Hi, '+esc(S.name)}</p>${card(d)}<form id="sf" class="find"><input id="q" inputmode="numeric" placeholder="Classmate ID, e.g. 24-03177"><button class="btn">Find</button></form>${S.view?'<button class="link" id="me">Back to my balance</button>':''}`;
+    $('#sf').onsubmit=e=>{e.preventDefault();if(!idOk($('#q').value))return toast('ID format should look like 24-03177');S.view=$('#q').value;home()};if(S.view)$('#me').onclick=()=>{S.view=null;home()}};
+  try{if(S.view){const r=await db.rpc('cf_lookup',{p_sid:k});if(r.error)throw r.error;paint(r.data)}else await swr('home:'+k,()=>db.rpc('cf_lookup',{p_sid:k}),paint)}catch(e){m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
 }
 async function chat(){
   const m=$('#main'),adm=S.role==='admin',staff=adm||S.role==='officer';if(!staff)S.seg='tr';const bu=S.seg==='bu';let ms=[],list='',th=bu?BUL:S.uid;
@@ -81,7 +87,7 @@ async function chat(){
   ${th?`<form id="cf" class="find"><input id="ci" maxlength="1000" placeholder="${bu?'Post to the bulletin':'Type a message'}" autocomplete="off"><button class="btn" aria-label="Send">${ic('send')}</button></form>`:''}`;
   m.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{S.th=b.dataset.th;chat()});m.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.seg=b.dataset.sg;chat()});
   m.querySelectorAll('[data-ly]').forEach(b=>b.onclick=()=>{S.lay=b.dataset.ly;localStorage.setItem('lay',S.lay);chat()});window.scrollTo(0,document.body.scrollHeight);
-  if(th)$('#cf').onsubmit=async e=>{e.preventDefault();const v=$('#ci').value.trim();if(!v)return;await send({thread:th,sender_name:S.name,is_admin:adm,body:v});chat()};
+  if(th)$('#cf').onsubmit=async e=>{e.preventDefault();const v=$('#ci').value.trim();if(!v)return;$('#ci').value='';m.querySelector('.msgs').insertAdjacentHTML('beforeend',`<div class="b me pend"><small>${esc(S.name)} · sending…</small>${esc(v)}</div>`);window.scrollTo(0,document.body.scrollHeight);await send({thread:th,sender_name:S.name,is_admin:adm,body:v});chat()};
 }
 function help(){$('#main').innerHTML=`<p class="hi">Help</p><div class="panel"><b>Why this app exists</b><p class="muted">Classmates kept asking the treasurer how much they still owe. This page shows it any time, so nobody has to ask.</p></div>
   <div class="panel"><b>How to use it</b><p class="muted"><b>Home:</b> your total amount to pay. Tap an item to see its amount, what you paid and the due date if one is set. Use the box at the bottom to check a classmate by ID.<br><b>Chat:</b> message the treasurer privately about a concern. It unlocks when the treasurer approves you; new users start as visitors.<br><b>Offline:</b> the app keeps your last balance, so you can open it without signal. It refreshes when you reconnect.<br><b>Eye icon:</b> how many people are online now.<br><b>Settings (top left):</b> dark or light mode, change your name or ID.</p></div>
@@ -101,40 +107,41 @@ function officer(){
   document.querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{S.os=b.dataset.os;officer()});({ov,pay:payTab,remit:remitTab,data:dataTools,roles:rolesTab})[S.os]();
 }
 const pct=c=>{const t=c.col+c.out;return t?Math.round(c.col/t*100):100},bar=(p,c='')=>`<div class="pb"><i class="${c}" style="width:${Math.min(p,100)}%"></i></div>`;
-async function ov(){
-  const b=$('#ob');b.innerHTML='<p class="muted">Loading…</p>';let o;
-  try{o=await cached('ov',()=>db.rpc('cf_overview'))}catch(e){return b.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
-  const s=o.summary||{},f=s.fund||{},cols=s.cols||[];if(!cols.length)return b.innerHTML='<div class="panel">No data yet. Import the tracker in Data tools.</div>';
-  const rr=remitRows(o),tl=rr.reduce((a,x)=>a+x.left,0),cur=cols.find(c=>c.l===o.current)||cols[2]||cols[0],tc=cols.reduce((a,c)=>a+c.col,0),to=cols.reduce((a,c)=>a+c.out,0),sp=[['Cash',f.cash,'g'],['Spent',f.expenses,'o'],['Remitted',f.remitted,'p']],st=sp.reduce((a,x)=>a+(x[1]||0),0)||1,mx=Math.max(...cols.map(c=>c.out),1);
-  b.innerHTML=`<div class="banner"><span>Cash on hand</span><div class="big">${php(f.cash)}</div><span class="sub">${o.as_of?'As of '+esc(o.as_of):''}</span><div class="chips2"><span>Collected ${php(f.collected)}</span><span>Spent ${php(f.expenses)}</span><span>Remitted ${php(f.remitted)}</span>${rr.length?`<span>To remit ${php(tl)}</span>`:''}</div></div>${rr.length?remitCard(rr,tl):''}
+const ovHtml=o=>{
+  const s=o.summary||{},f=s.fund||{},cols=s.cols||[];if(!cols.length)return'<div class="panel">No data yet. Import the tracker in Data tools.</div>';
+  const rr=remitRows(o),tl=rr.reduce((a,x)=>a+x.left,0),cur=cols.find(c=>c.l===o.current)||cols[2]||cols[0],tc=cols.reduce((a,c)=>a+c.col,0),to=cols.reduce((a,c)=>a+c.out,0),sp=[['Cash',f.cash,'g'],['Spent',f.expenses,'o'],['Remitted',f.remitted,'p']],st=sp.reduce((a,x)=>a+(x[1]||0),0)||1,mx=Math.max(...cols.map(c=>c.out),1),can=has('remit');
+  return`<div class="banner"><span>Cash on hand</span><div class="big">${php(f.cash)}</div><span class="sub">${o.as_of?'As of '+esc(o.as_of):''}</span><div class="chips2"><span>Collected ${php(f.collected)}</span><span>Spent ${php(f.expenses)}</span><span>Remitted ${php(f.remitted)}</span><span>To remit ${php(tl)}</span></div></div>${remitCard(rr,tl,can)}
   <h2>Current collection</h2><div class="panel"><b>${esc(cur.l)}</b><div class="two"><div><small>Collected</small><div class="n ok">${php(cur.col)}</div></div><div><small>Outstanding</small><div class="n owe">${php(cur.out)}</div></div></div>${bar(pct(cur))}<small>${pct(cur)}% collected${cur.unpaid!=null?' · '+cur.unpaid+' students with a balance':''}</small></div>
-  <h2>All collections</h2>${cols.map(c=>`<div class="panel slim"><div class="row"><b>${esc(c.l)}</b><span class="muted">${pct(c)}%</span></div>${bar(pct(c))}<div class="row"><small>Collected ${php(c.col)}</small><small class="${c.out?'owe':''}">Outstanding ${php(c.out)}</small></div></div>`).join('')}
+  <h2>All collections</h2>${cols.map(c=>`<div class="panel slim"><div class="row"><b>${esc(c.l)}</b><span class="row2"><span class="muted">${pct(c)}%</span>${can&&grpOf(c.l)?`<button class="mini" data-rm="${esc(c.l)}">Remit</button>`:''}</span></div>${bar(pct(c))}<div class="row"><small>Collected ${php(c.col)}</small><small class="${c.out?'owe':''}">Outstanding ${php(c.out)}</small></div></div>`).join('')}
   <h2>Figures</h2><div class="tiles"><div class="panel"><small>Total outstanding</small><div class="n owe">${php(to)}</div></div><div class="panel"><small>Students owing</small><div class="n">${(s.stu||{}).owing??'–'}</div></div><div class="panel"><small>Collection rate</small><div class="n">${tc+to?Math.round(tc/(tc+to)*100):100}%</div></div></div>
   <div class="panel"><b>Where the money is</b><div class="stack">${sp.map(x=>`<i class="${x[2]}" style="width:${(x[1]||0)/st*100}%"></i>`).join('')}</div><div class="leg">${sp.map(x=>`<span><i class="${x[2]}"></i>${x[0]} ${php(x[1])}</span>`).join('')}</div></div>
-  <div class="panel"><b>Outstanding by collection</b>${cols.filter(c=>c.out>0).map(c=>`<div class="hb"><span>${esc(c.l)}</span><div class="pb"><i class="o" style="width:${c.out/mx*100}%"></i></div><small>${php(c.out)}</small></div>`).join('')||'<p class="muted">Nothing outstanding.</p>'}</div>`;
+  <div class="panel"><b>Outstanding by collection</b>${cols.filter(c=>c.out>0).map(c=>`<div class="hb"><span>${esc(c.l)}</span><div class="pb"><i class="o" style="width:${c.out/mx*100}%"></i></div><small>${php(c.out)}</small></div>`).join('')||'<p class="muted">Nothing outstanding.</p>'}</div>`};
+const bindOv=()=>document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>openRemit(b.dataset.rm));
+async function ov(){
+  const b=$('#ob');b.innerHTML=sk(4);const paint=d=>{S.ovd=d;if(S.tab!=='officer'||S.os!=='ov')return;$('#ob').innerHTML=ovHtml(d);bindOv()};
+  try{await swr('ov',()=>db.rpc('cf_overview'),paint)}catch(e){b.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
 }
-
 /* ---------- Payments: record + paid list ---------- */
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},rem=i=>Math.max(i.due-i.paid,0);
 async function payTab(){
   const b=$('#ob'),rec=has('record_payments'),pl=has('paid_list');
-  b.innerHTML=`${rec?`<h2>Record a payment</h2><form id="pf" class="find"><input id="pq" placeholder="Name or ID" autocomplete="off"><button class="btn">Search</button></form><div id="pr"></div><h2>Recent payments</h2><div id="lg" class="muted">Loading…</div>`:''}
-  ${pl?`<h2>Paid list (for clearance)</h2><label>Collection</label><select id="pl">${LABELS.map(l=>`<option>${esc(l)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="pp"> Include partial payments</label><div class="find"><button class="btn" id="lp">${ic('dl',18)}&nbsp;PDF</button><button class="btn ghost" id="lx">${ic('dl',18)}&nbsp;Excel</button></div><div id="pvl"></div><p class="hint">The PDF and Excel add a blank Signature column.</p>`:''}`;
+  b.innerHTML=`${rec?`<h2>Record a payment</h2><form id="pf" class="find"><input id="pq" placeholder="Name or ID" autocomplete="off"><button class="btn">Search</button></form><div id="pr"></div><h2>Recent payments</h2><div id="lg">${sk(2)}</div>`:''}
+  ${pl?`<h2>Paid list</h2><div class="seg" id="pg">${Object.keys(GR).map(g=>`<button data-g="${g}" class="${(S.pg||'CBMA')===g?'on':''}">${g==='All'?'All payments':g}</button>`).join('')}</div><label class="chk"><input type="checkbox" id="pp"> Fully paid only</label><div id="pvl"></div><div class="find"><button class="btn" id="lp">${ic('dl',18)}&nbsp;PDF</button><button class="btn ghost" id="lx">${ic('dl',18)}&nbsp;Excel</button></div><p class="hint">PDF and Excel add a blank Signature column.</p>`:''}`;
   if(rec){$('#pf').onsubmit=async e=>{e.preventDefault();const q=$('#pq').value.trim(),o=$('#pr');if(q.length<2)return toast('Type at least 2 letters or digits');o.innerHTML='<p class="muted">Searching…</p>';
       const {data,error}=await db.rpc('cf_find',{p_q:q});if(error)return o.innerHTML=`<p class="owe">${esc(error.message)}</p>`;
       o.innerHTML=(data||[]).map((s,i)=>`<button class="res" data-i="${i}"><b>${esc(s.name)}</b><small>${esc(s.sid_show)} · owes ${php((s.items||[]).reduce((a,x)=>a+rem(x),0))}</small></button>`).join('')||'<p class="muted">No match. Check the spelling or try the ID.</p>';
       o.querySelectorAll('.res').forEach(x=>x.onclick=()=>payForm(data[x.dataset.i]))};logView()}
-  if(pl){$('#lp').onclick=()=>paidList('pdf');$('#lx').onclick=()=>paidList('xlsx');$('#pl').onchange=$('#pp').onchange=pvList;pvList()}
+  if(pl){$('#pg').querySelectorAll('button').forEach(x=>x.onclick=()=>{S.pg=x.dataset.g;$('#pg').querySelectorAll('button').forEach(y=>y.classList.toggle('on',y===x));ptDraw()});$('#pp').onchange=ptDraw;$('#lp').onclick=e=>act(e.currentTarget,()=>ptExport('pdf'),'Preparing…','Downloaded');$('#lx').onclick=e=>act(e.currentTarget,()=>ptExport('xlsx'),'Preparing…','Downloaded');ptLoad()}
 }
 function payForm(s){
   const its=[...(s.items||[])].sort((a,c)=>(rem(c)>0)-(rem(a)>0)),o=$('#pr');
   o.innerHTML=`<div class="panel"><b>${esc(s.name)}</b> <small class="muted">${esc(s.sid_show)}</small><label>Collection</label><select id="pc">${its.map(i=>`<option value="${esc(i.l)}">${esc(i.l)}${rem(i)?' · owes '+php(rem(i)):' · settled'}</option>`).join('')}</select>
   <label>Amount received (₱)</label><input id="pa" type="number" inputmode="decimal" min="1" step="1"><label>Date</label><input id="pd" type="date" value="${today()}"><label>Note (optional)</label><input id="pn" maxlength="200" placeholder="e.g. GCash ref"><p><button class="btn" id="ps">Save payment</button></p></div>`;
   const fill=()=>{const i=its.find(x=>x.l===$('#pc').value);$('#pa').value=i&&rem(i)?rem(i):''};fill();$('#pc').onchange=fill;
-  $('#ps').onclick=async()=>{const a=+$('#pa').value,l=$('#pc').value,i=its.find(x=>x.l===l);if(!(a>0))return toast('Enter an amount above zero');
-    if(i&&rem(i)&&a>rem(i)&&$('#ps').dataset.ok!=='1'){$('#ps').dataset.ok='1';return $('#ps').textContent=`Only ${php(rem(i))} is owed. Tap again to save ${php(a)}`}
-    const {error}=await db.rpc('cf_record',{p_sid:s.sid,p_label:l,p_amount:a,p_date:$('#pd').value||today(),p_note:$('#pn').value});
-    if(error)return toast(error.message);toast(`Saved ${php(a)} for ${s.name}`);o.innerHTML='';$('#pq').value='';logView()}
+  $('#ps').onclick=e=>act(e.currentTarget,async()=>{const a=+$('#pa').value,l=$('#pc').value,i=its.find(x=>x.l===l);if(!(a>0))throw Error('Enter an amount above zero');
+    if(i&&rem(i)&&a>rem(i)&&$('#ps').dataset.ok!=='1'){$('#ps').dataset.ok='1';throw Error(`Only ${php(rem(i))} is owed. Tap Save payment again to save ${php(a)}.`)}
+    const {error}=await db.rpc('cf_record',{p_sid:s.sid,p_label:l,p_amount:a,p_date:$('#pd').value||today(),p_note:$('#pn').value});if(error)throw error;
+    ls.s('ov',null);ls.s('ptab',null);toast(`Saved ${php(a)} for ${s.name}`);setTimeout(()=>{o.innerHTML='';$('#pq').value='';logView()},700)},'Saving…','Saved');
 }
 async function logView(){
   const g=$('#lg');if(!g)return;const {data,error}=await db.rpc('cf_pay_log');if(error)return g.textContent=error.message;
@@ -145,37 +152,41 @@ async function logView(){
       XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['Type','ID','Name','Collection','Amount','Date'],...d.map(x=>[x.kind,x.sid_show||'',x.name,x.label,x.amount,x.d])]),'Payments');XLSX.writeFile(w,'payments-to-enter.xlsx')};
     $('#um').onclick=async e=>{if(e.target.dataset.c!=='1'){e.target.dataset.c='1';return e.target.textContent='Tap again: they are in my Excel'}const {error}=await db.rpc('cf_mark_synced');toast(error?error.message:'Marked');logView()}}
 }
-async function pvList(){
-  const o=$('#pvl');if(!o)return;o.innerHTML='<p class="muted">Loading…</p>';const {data,error}=await db.rpc('cf_paid_list',{p_label:$('#pl').value,p_partial:$('#pp').checked});
-  if(error)return o.innerHTML=`<p class="owe">${esc(error.message)}</p>`;
-  o.innerHTML=data.length?`<div class="panel slim"><b>${data.length} student${data.length>1?'s':''}</b> <small class="muted">${$('#pp').checked?'paid in full or partly':'paid in full'}</small><div class="scroll"><table class="mx pl"><tr><th>No.</th><th>Name</th><th>ID</th><th>Paid</th></tr>${data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${esc(r.sid)}</td><td>${r.paid<r.due?php(r.paid)+' of '+php(r.due):php(r.paid)}</td></tr>`).join('')}</table></div></div>`:'<p class="muted">Nobody has paid this collection yet.</p>';
+const GR={CBMA:GROUPS.CBMA,ESO:GROUPS.ESO,All:LABELS},sh=l=>l.replace(' Laro ng Lahi','').replace(' class work','');
+function ptRows(){const L=GR[S.pg||'CBMA'],full=$('#pp')?.checked;return(S.ptd||[]).map(s=>{const m=Object.fromEntries((s.items||[]).map(i=>[i.l,i])),cells=L.map(l=>m[l]),paid=cells.reduce((a,c)=>a+(c?+c.paid||0:0),0);return{s,cells,paid,ok:cells.filter(c=>c&&c.due>0).every(c=>c.paid>=c.due)}}).filter(r=>r.paid>0&&(!full||r.ok))}
+const pc=c=>!c||!(c.paid>0)?'–':c.paid>=c.due?php(c.paid):`<span class="owe">${php(c.paid)}/${c.due}</span>`,pt=c=>!c||!(c.paid>0)?'-':c.paid>=c.due?String(c.paid):`${c.paid}/${c.due}`;
+function ptDraw(){const o=$('#pvl');if(!o)return;const L=GR[S.pg||'CBMA'],R=ptRows();
+  o.innerHTML=R.length?`<div class="panel slim"><b>${R.length} student${R.length>1?'s':''}</b> <small class="muted">${S.pg==='All'?'all payments':(S.pg||'CBMA')+' payments'}</small><div class="scroll"><table class="mx pl"><tr><th>No.</th><th>Name</th><th>ID</th>${L.map(l=>`<th>${esc(sh(l))}</th>`).join('')}<th>Total</th></tr>${R.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.s.name)}</td><td>${esc(r.s.sid)}</td>${r.cells.map(c=>`<td>${pc(c)}</td>`).join('')}<td><b>${php(r.paid)}</b></td></tr>`).join('')}</table></div></div>`:'<p class="muted">Nobody has paid here yet.</p>'}
+async function ptLoad(){const o=$('#pvl');o.innerHTML=sk(2);try{await swr('ptab',()=>db.rpc('cf_paid_table'),d=>{S.ptd=d||[];ptDraw()})}catch(e){o.innerHTML=`<p class="owe">${esc(e.message)}</p>`}}
+async function ptExport(fmt){
+  const L=GR[S.pg||'CBMA'],R=ptRows();if(!R.length)throw Error('Nobody to list yet');const head=['No.','Name','ID',...L.map(sh),'Total (PHP)','Signature'],body=R.map((r,i)=>[i+1,r.s.name,r.s.sid,...r.cells.map(pt),r.paid,'']),d=new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),fn='paid-list-'+(S.pg||'CBMA').toLowerCase();
+  if(fmt==='xlsx'){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([head,...body]),'Paid');XLSX.writeFile(w,fn+'.xlsx');return}
+  if(!window.jspdf)throw Error('PDF tool not loaded. Connect to the internet once and retry.');
+  const {jsPDF}=window.jspdf,p=new jsPDF({orientation:L.length>3?'l':'p'});p.setFontSize(15);p.text('Class Funds - Paid list: '+(S.pg==='All'?'All payments':(S.pg||'CBMA')),14,16);p.setFontSize(10);p.text(`${R.length} student(s)  |  as of ${d}`,14,23);
+  p.autoTable({startY:28,head:[head],body,styles:{fontSize:L.length>3?7.5:9,cellPadding:2.5,minCellHeight:9,lineColor:[200,200,200],lineWidth:.1},headStyles:{fillColor:[79,70,229]},columnStyles:{[head.length-1]:{cellWidth:38}}});
+  p.setFontSize(10);p.text('Prepared by: ______________________      Date: ______________',14,Math.min(p.lastAutoTable.finalY+16,p.internal.pageSize.getHeight()-8));p.save(fn+'.pdf');
 }
-async function paidList(fmt){
-  const l=$('#pl').value,part=$('#pp').checked,{data,error}=await db.rpc('cf_paid_list',{p_label:l,p_partial:part});if(error)return toast(error.message);if(!data.length)return toast('Nobody has paid this collection yet');
-  const amt=r=>part&&r.paid<r.due?`${r.paid} of ${r.due}`:String(r.paid),rows=data.map((r,i)=>[i+1,r.name,r.sid,amt(r)]),d=new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),fn='paid-list-'+l.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-  if(fmt==='xlsx'){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['No.','Name','ID','Amount paid (PHP)','Signature'],...rows.map(r=>[...r,''])]),'Paid');return XLSX.writeFile(w,fn+'.xlsx')}
-  if(!window.jspdf)return toast('PDF tool not loaded. Connect to the internet once and retry.');
-  const {jsPDF}=window.jspdf,p=new jsPDF();p.setFontSize(15);p.text('Class Funds - Paid list',14,16);p.setFontSize(10);p.text(`${l}  |  ${data.length} student(s)  |  as of ${d}`,14,23);
-  p.autoTable({startY:28,head:[['No.','Name','ID','Amount paid (PHP)','Signature']],body:rows.map(r=>[...r,'']),styles:{fontSize:9,cellPadding:3,minCellHeight:10,lineColor:[200,200,200],lineWidth:.1},headStyles:{fillColor:[79,70,229]},columnStyles:{0:{cellWidth:12},2:{cellWidth:26},3:{cellWidth:30},4:{cellWidth:45}}});
-  p.setFontSize(10);p.text('Prepared by: ______________________      Date: ______________',14,Math.min(p.lastAutoTable.finalY+16,285));p.save(fn+'.pdf');
-}
-
 /* ---------- Remittance ---------- */
-const remitRows=o=>{const rp=o.remit||{},rm=o.remitted||{};return((o.summary||{}).cols||[]).filter(c=>+rp[c.l]>0).map(c=>{const should=Math.round(c.col*rp[c.l])/100,sent=+rm[c.l]||0;return{l:c.l,p:+rp[c.l],col:c.col,should,sent,left:Math.max(should-sent,0),over:Math.max(sent-should,0)}})};
-const remitCard=(rr,tl)=>`<h2>To remit</h2><div class="panel"><div class="row"><b>Still to remit</b><span class="n ${tl?'owe':'ok'}">${php(tl)}</span></div><small class="muted">The remit share of what each collection has collected, minus what you already handed over.</small>${rr.map(x=>`<div class="rm"><div class="row"><b>${esc(x.l)}</b><span class="badge">${x.p}%</span></div><div class="pb"><i style="width:${x.should?Math.min(x.sent/x.should*100,100):100}%"></i></div><div class="row"><small>Collected ${php(x.col)} · remit share ${php(x.should)}</small></div><div class="row"><small>Remitted ${php(x.sent)}</small><small class="${x.left?'owe':'ok'}"><b>${x.left?'To remit '+php(x.left):x.over?'Over by '+php(x.over):'Fully remitted'}</b></small></div></div>`).join('')}</div>`;
-async function remitTab(){
-  const b=$('#ob');b.innerHTML='<p class="muted">Loading…</p>';const [a,l]=await Promise.all([db.rpc('cf_overview'),db.rpc('cf_remit_log')]);
-  if(a.error||l.error)return b.innerHTML=`<p class="owe">${esc((a.error||l.error).message)}</p>`;
-  const rr=remitRows(a.data),tl=rr.reduce((x,y)=>x+y.left,0),left=k=>rr.find(x=>x.l===k)?.left||0;
-  b.innerHTML=`${rr.length?remitCard(rr,tl):'<div class="panel muted">No remit shares are set yet. Set them in Admin.</div>'}<h2>Record a remittance</h2><label>Collection</label><select id="rc">${[...rr.map(x=>x.l),...LABELS.filter(k=>!rr.some(x=>x.l===k))].map(k=>`<option>${esc(k)}</option>`).join('')}</select>
-  <label>Amount handed over (₱)</label><input id="ra" type="number" inputmode="decimal" min="1"><label>Date</label><input id="rd" type="date" value="${today()}"><label>Recipient or note</label><input id="rn" maxlength="200" placeholder="e.g. CBMA treasurer"><p><button class="btn" id="rs">Save remittance</button></p>
-  <h2>History</h2>${(l.data||[]).map(r=>`<div class="row ${r.undone?'strike':''}"><span>${esc(r.label)}<small class="muted"> ${php(r.amount)} · ${esc(r.sent_on)}${r.note?' · '+esc(r.note):''}</small></span>${r.undone?'<span class="badge">undone</span>':r.in_excel?'<span class="badge">in Excel</span>':`<button class="link" data-u="${r.id}">Undo</button>`}</div>`).join('')||'<p class="muted">Nothing recorded yet.</p>'}`;
-  const fill=()=>{const v=left($('#rc').value);$('#ra').value=v||''};fill();$('#rc').onchange=fill;
-  $('#rs').onclick=async()=>{const v=+$('#ra').value,k=$('#rc').value;if(!(v>0))return toast('Enter an amount above zero');
-    if(v>left(k)&&$('#rs').dataset.ok!=='1'){$('#rs').dataset.ok='1';return $('#rs').textContent=`Only ${php(left(k))} is left to remit. Tap again to save ${php(v)}`}
-    const {error}=await db.rpc('cf_remit',{p_label:k,p_amount:v,p_date:$('#rd').value||today(),p_note:$('#rn').value});if(error)return toast(error.message);toast('Remittance saved');ls.s('ov',null);remitTab()};
-  b.querySelectorAll('[data-u]').forEach(x=>x.onclick=async()=>{if(x.dataset.c!=='1'){x.dataset.c='1';return x.textContent='Tap to confirm'}const {error}=await db.rpc('cf_remit_undo',{p_id:+x.dataset.u});toast(error?error.message:'Undone');remitTab()});
+const remitRows=o=>{const rp=o.remit||{},rm=o.remitted||{},cols=(o.summary||{}).cols||[];return Object.values(GROUPS).flat().map(l=>{const c=cols.find(x=>x.l===l)||{col:0},p=+rp[l]||0,should=Math.round(c.col*p)/100,sent=+rm[l]||0;return{l,g:grpOf(l),p,col:c.col,should,sent,left:Math.max(should-sent,0),over:Math.max(sent-should,0)}})};
+const remitCard=(rr,tl,can)=>`<h2>To remit</h2><div class="panel"><div class="row"><b>Still to remit</b><span class="n ${tl?'owe':'ok'}">${php(tl)}</span></div><small class="muted">Remit share of each collection, minus what you already handed over.</small>${Object.keys(GROUPS).map(g=>{const xs=rr.filter(x=>x.g===g),gl=xs.reduce((a,x)=>a+x.left,0);return`<div class="gh"><b>${g}</b><span class="${gl?'owe':'ok'}">${gl?'To remit '+php(gl):'Fully remitted'}</span></div>${xs.map(x=>`<div class="rm"><div class="row"><span>${esc(x.l)} <span class="badge">${x.p}%</span></span>${can?`<button class="mini" data-rm="${esc(x.l)}">Remit</button>`:''}</div><div class="pb"><i style="width:${x.should?Math.min(x.sent/x.should*100,100):(x.p?100:0)}%"></i></div><div class="row"><small>Collected ${php(x.col)} · share ${php(x.should)} · remitted ${php(x.sent)}</small><small class="${x.left?'owe':'ok'}"><b>${x.left?php(x.left)+' left':x.over?'Over '+php(x.over):'Done'}</b></small></div></div>`).join('')}`}).join('')}</div>`;
+function openRemit(label){
+  const d=S.ovd;if(!d)return;const x=remitRows(d).find(r=>r.l===label),g=grpOf(label),bg=document.createElement('div');bg.className='sheet-bg';
+  bg.innerHTML=`<div class="sheet"><div class="grab"></div><b>Remit ${esc(label)}</b> <span class="badge">${g}</span><p class="muted">Still to remit ${php(x?x.left:0)}</p><label>Amount handed over (₱)</label><input id="ra" type="number" inputmode="decimal" min="1" value="${x&&x.left?x.left:''}"><label>Date</label><input id="rd" type="date" value="${today()}"><label>Note</label><input id="rn" maxlength="200" value="${g}"><div class="find"><button class="btn" id="rs">Save remittance</button><button class="btn ghost" id="rx">Cancel</button></div></div>`;
+  document.body.appendChild(bg);requestAnimationFrame(()=>bg.classList.add('in'));const q=k=>bg.querySelector(k),close=()=>{bg.classList.remove('in');setTimeout(()=>bg.remove(),280)};
+  bg.onclick=e=>{if(e.target===bg)close()};q('#rx').onclick=close;
+  q('#rs').onclick=e=>act(e.currentTarget,async()=>{const v=+q('#ra').value;if(!(v>0))throw Error('Enter an amount above zero');
+    if(x&&v>x.left&&q('#rs').dataset.ok!=='1'){q('#rs').dataset.ok='1';throw Error(`Only ${php(x.left)} is left to remit. Tap Save remittance again to confirm ${php(v)}.`)}
+    const {error}=await db.rpc('cf_remit',{p_label:label,p_amount:v,p_date:q('#rd').value||today(),p_note:q('#rn').value});if(error)throw error;
+    d.remitted={...(d.remitted||{}),[label]:(+(d.remitted||{})[label]||0)+v};const f=d.summary.fund;f.cash=(f.cash||0)-v;f.remitted=(f.remitted||0)+v;ls.s('ov',{t:Date.now(),d});
+    setTimeout(()=>{close();toast(`Remitted ${php(v)} to ${g}`);({ov,remit:remitTab})[S.os]?.()},650)},'Saving…','Saved');
 }
+async function remitTab(){
+  const b=$('#ob');b.innerHTML=sk(4);const paint=d=>{S.ovd=d;if(S.tab!=='officer'||S.os!=='remit')return;const rr=remitRows(d),tl=rr.reduce((x,y)=>x+y.left,0);$('#ob').innerHTML=`${remitCard(rr,tl,true)}<h2>History</h2><div id="rh">${sk(1)}</div>`;bindOv();hist()};
+  try{await swr('ov',()=>db.rpc('cf_overview'),paint)}catch(e){b.innerHTML=`<p class="owe">${esc(e.message)}</p>`}
+}
+async function hist(){const h=$('#rh');if(!h)return;const {data,error}=await db.rpc('cf_remit_log');if(error)return h.textContent=error.message;
+  h.innerHTML=(data||[]).map(r=>`<div class="row ${r.undone?'strike':''}"><span>${esc(r.label)}<small class="muted"> ${php(r.amount)} · ${esc(r.sent_on)}${r.note?' · '+esc(r.note):''}</small></span>${r.undone?'<span class="badge">undone</span>':r.in_excel?'<span class="badge">in Excel</span>':`<button class="link" data-u="${r.id}">Undo</button>`}</div>`).join('')||'<p class="muted">Nothing recorded yet.</p>';
+  h.querySelectorAll('[data-u]').forEach(x=>x.onclick=async()=>{if(x.dataset.c!=='1'){x.dataset.c='1';return x.textContent='Tap to confirm'}x.textContent='Undoing…';const {error}=await db.rpc('cf_remit_undo',{p_id:+x.dataset.u});toast(error?error.message:'Remittance undone');if(!error){ls.s('ov',null);remitTab()}else x.textContent='Undo'})}
 /* parse tracker */
 function parseXlsx(buf){
   const wb=XLSX.read(buf),ws=wb.Sheets['Collections'];if(!ws)throw Error('Sheet "Collections" not found.');
@@ -187,11 +198,12 @@ function parseXlsx(buf){
     [[20,21,7],[22,23,8]].forEach(([c,a,k])=>{const d=intramsDue(r[a]);if(d!==null)it.push({l:LABELS[k],due:d,paid:+r[c]||0})});
     [24,25].forEach((c,i)=>it.push({l:LABELS[3+i],due:EVENT_DUES[i],paid:+r[c]||0}));students.push({sid,sid_show:String(r[1]),name:r[2],status:r[3],items:it})}
   const D=XLSX.utils.sheet_to_json(wb.Sheets['Dashboard']||{},{header:1,defval:null}),val=k=>+(D.find(r=>String(r[0]||'').trim().toLowerCase()===k)?.[1])||0;
-  const cols=LABELS.map(l=>{const r=D.find(r=>r[0]&&String(r[0]).startsWith(l)),its=students.flatMap(s=>s.items.filter(i=>i.l===l)),bl=i=>Math.max(i.due-i.paid,0),num=typeof r?.[1]==='number'&&typeof r?.[3]==='number';
+  const cols=LABELS.map(l=>{const r=D.find(r=>r[0]&&(String(r[0]).startsWith(l)||ALIAS[l]&&String(r[0]).startsWith(ALIAS[l]))),its=students.flatMap(s=>s.items.filter(i=>i.l===l)),bl=i=>Math.max(i.due-i.paid,0),num=typeof r?.[1]==='number'&&typeof r?.[3]==='number';
     return{l,col:r?+r[2]||0:its.reduce((a,i)=>a+i.paid,0),due:num?r[1]:its.reduce((a,i)=>a+i.due,0),out:num?r[3]:its.reduce((a,i)=>a+bl(i),0),unpaid:its.filter(i=>bl(i)>0).length}});
   const fund={cash:val('cash on hand'),collected:val('total collected'),outstanding:val('total outstanding (unpaid balances)'),expenses:val('total expenses'),remitted:val('remitted to cbma')};
   return{students,skip,summary:{fund,cols,stu:{owing:students.filter(s=>s.items.some(i=>i.due>i.paid)).length}}};
 }
+const normJ=j=>{const f=l=>RN[l]||l;return{students:j.students.map(s=>({...s,items:(s.items||[]).map(i=>({...i,l:f(i.l)}))})),skip:[],summary:{...(j.summary||{}),cols:((j.summary||{}).cols||[]).map(c=>({...c,l:f(c.l)}))},asOf:j.as_of,json:1}};
 function dl(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 function dataTools(){
   const b=$('#ob'),ex=has('data_export'),im=has('data_import');
@@ -203,10 +215,13 @@ function dataTools(){
       const rows=d.students.map(s=>{const v=LABELS.map(l=>{const i=s.items.find(x=>x.l===l);return i?bal(i):''});return[s.sid_show,s.name,s.status,...v,v.reduce((a,x)=>a+(+x||0),0)]});
       const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([H,...rows]),'Balances');XLSX.writeFile(w,'class-funds-balances.xlsx')}catch(e){toast(e.message)}}}
   if(im)$('#fi').onchange=async e=>{const f=e.target.files[0],pv=$('#pv');if(!f)return;pv.textContent='Reading file…';let r;
-    try{if(/\.json$/i.test(f.name)){const j=JSON.parse(await f.text());if(!Array.isArray(j.students))throw Error('Not a backup file.');r={students:j.students,skip:[],summary:j.summary||{},asOf:j.as_of,json:1}}else r=parseXlsx(await f.arrayBuffer())}catch(x){return pv.innerHTML=`<p class="owe">${esc(x.message)}</p>`}
-    const fu=(r.summary||{}).fund||{};pv.innerHTML=`<div class="panel"><b>Preview</b><p class="muted">${r.students.length} students · ${(r.summary.stu||{}).owing??'?'} with a balance · cash on hand ${php(fu.cash)}${r.skip.length?'<br>Skipped (no ID): '+esc(r.skip.join('; ')):''}<br>This replaces all balances in the app.${r.json?'':' Payments recorded in the app but not yet marked as in Excel are added back on top.'}</p><div class="find"><button class="btn" id="ap">Apply</button><button class="btn ghost" id="ca">Cancel</button></div></div>`;
+    try{if(/\.json$/i.test(f.name)){const j=JSON.parse(await f.text());if(!Array.isArray(j.students))throw Error('Not a backup file.');r=normJ(j)}else r=parseXlsx(await f.arrayBuffer())}catch(x){return pv.innerHTML=`<p class="owe">${esc(x.message)}</p>`}
+    const fu=(r.summary||{}).fund||{};let cur=S.ovd?.summary?.fund?.collected;if(cur==null){try{const q=await db.rpc('cf_overview');cur=q.data?.summary?.fund?.collected}catch{}}const nw=fu.collected||0,warn=cur!=null&&nw<cur;
+    pv.innerHTML=`<div class="panel"><b>Preview</b>${warn?`<p class="owe"><b>Warning:</b> this file shows ${php(nw)} collected but the app has ${php(cur)}. Importing will overwrite newer data in the app.</p>`:''}<p class="muted">${r.students.length} students · ${(r.summary.stu||{}).owing??'?'} with a balance · cash on hand ${php(fu.cash)}${r.skip.length?'<br>Skipped (no ID): '+esc(r.skip.join('; ')):''}<br>This replaces all balances in the app.${r.json?'':' Payments recorded in the app but not yet marked as in Excel are added back on top.'}</p><div class="find"><button class="btn" id="ap">${warn?'Apply anyway':'Apply'}</button><button class="btn ghost" id="ca">Cancel</button></div></div>`;
     $('#ca').onclick=()=>{pv.innerHTML='';$('#fi').value=''};
-    $('#ap').onclick=async()=>{const {data,error}=await db.rpc('cf_import',{p_students:r.students,p_summary:r.summary,p_as_of:r.asOf||new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),p_reapply:!r.json});ls.s('ov',null);pv.innerHTML=error?`<p class="owe">Import failed: ${esc(error.message)}</p>`:`<p class="ok">Imported ${r.students.length} students.${data?` Added back ${data} payments not yet in Excel.`:''}</p>`}};
+    $('#ap').onclick=e=>{const bt=e.currentTarget;act(bt,async()=>{if(warn&&bt.dataset.ok!=='1'){bt.dataset.ok='1';throw Error('Less money than the app has. Tap again only if you are sure.')}
+      const {data,error}=await db.rpc('cf_import',{p_students:r.students,p_summary:r.summary,p_as_of:r.asOf||new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),p_reapply:!r.json});if(error)throw error;
+      ls.s('ov',null);ls.s('ptab',null);pv.innerHTML=`<p class="ok">Imported ${r.students.length} students.${data?` Added back ${data} payments not yet in Excel.`:''}</p>`},'Importing…','Imported')}};
 }
 async function rolesTab(){
   const b=$('#ob'),adm=S.role==='admin',{data:us,error}=await db.from('cf_profiles').select('user_id,name,sid,role').order('name');if(error)return b.innerHTML=`<p class="muted">${esc(error.message)}</p>`;
@@ -226,8 +241,8 @@ async function admin(){
   <h2>Dashboard display</h2><label>As of (text shown to students)</label><input id="ao" value="${esc(c.as_of)}"><label>Announcement (optional)</label><textarea id="an" rows="2">${esc(c.announcement)}</textarea><label>Current collection (officer dashboard)</label><select id="cu">${LABELS.map(l=>`<option ${c.current===l?'selected':''}>${esc(l)}</option>`).join('')}</select><label>Share of each collection to remit (%)</label>${LABELS.map((l,i)=>`<div class="row"><span>${esc(l)}</span><input type="number" inputmode="decimal" min="0" max="100" data-rp="${i}" value="${(c.remit||{})[l]||0}"></div>`).join('')}<label>Show items and due dates</label>
   ${LABELS.map((l,i)=>`<div class="row"><label class="chk"><input type="checkbox" data-h="${i}" ${hid.includes(l)?'':'checked'}>${esc(l)}</label><input data-d="${i}" placeholder="Due date" value="${esc(dt[l]||'')}"></div>`).join('')}<p><button class="btn" id="sv">Save display</button></p>
   <h2>Class code</h2><div class="find"><input id="nc" placeholder="New class code"><button class="btn" id="sc">Set</button></div>`;
-  $('#sv').onclick=async()=>{const h=[],d={};LABELS.forEach((l,i)=>{if(!m.querySelector(`[data-h="${i}"]`).checked)h.push(l);const v=m.querySelector(`[data-d="${i}"]`).value.trim();if(v)d[l]=v});
-    const rp={};LABELS.forEach((l,i)=>{const v=+m.querySelector(`[data-rp="${i}"]`).value;if(v>0)rp[l]=Math.min(v,100)});const {error}=await db.from('cf_config').update({as_of:$('#ao').value,announcement:$('#an').value,hidden:h,dates:d,current:$('#cu').value,remit:rp}).eq('id',1);toast(error?error.message:'Saved')};
+  $('#sv').onclick=e=>act(e.currentTarget,async()=>{const h=[],d={};LABELS.forEach((l,i)=>{if(!m.querySelector(`[data-h="${i}"]`).checked)h.push(l);const v=m.querySelector(`[data-d="${i}"]`).value.trim();if(v)d[l]=v});
+    const rp={};LABELS.forEach((l,i)=>{const v=+m.querySelector(`[data-rp="${i}"]`).value;if(v>0)rp[l]=Math.min(v,100)});const {error}=await db.from('cf_config').update({as_of:$('#ao').value,announcement:$('#an').value,hidden:h,dates:d,current:$('#cu').value,remit:rp}).eq('id',1);if(error)throw error;ls.s('cfg',null)},'Saving…','Saved');
   $('#sc').onclick=async()=>{if($('#nc').value.length<4)return toast('Use at least 4 characters');const {error}=await db.rpc('cf_set_code',{p_code:$('#nc').value});toast(error?error.message:'Class code changed')};
 }
 addEventListener('online',()=>{updOff();flush();if(S.uid)go(S.tab)});addEventListener('offline',updOff);
