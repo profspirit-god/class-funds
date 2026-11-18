@@ -7,7 +7,7 @@ const FEE_DUES=[40,20]; // Membership, Activity (change if wrong)
 const intramsDue=a=>{a=String(a||'').toLowerCase();return/both/.test(a)?0:/only/.test(a)?25:/absent/.test(a)?50:null};
 const EVENT_DUES=[50,25]; // amount every student must pay for the two event columns
 const BUL='00000000-0000-0000-0000-00000000b011',ROLES=['visitor','student','officer','admin'];
-const PERMS=[['chat','Chat'],['officer_dash','Officer'],['data_export','Export'],['data_import','Import'],['manage_roles','Roles']];
+const PERMS=[['chat','Chat'],['officer_dash','Officer'],['data_export','Export'],['data_import','Import'],['manage_roles','Roles'],['record_payments','Record'],['paid_list','Paid list']];
 const db=supabase.createClient(SUPA_URL,SUPA_KEY);
 const $=s=>document.querySelector(s),S={tab:'home',online:0,view:null,perms:[],os:'ov',seg:'tr',lay:localStorage.getItem('lay')||'pills'};
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -96,9 +96,9 @@ function settings(){
 }
 /* ---------- Officer dashboard ---------- */
 function officer(){
-  const t=[['ov','Overview',1],['data','Data tools',has('data_import')||has('data_export')],['roles','Roles',has('manage_roles')||S.role==='admin']].filter(x=>x[2]);if(!t.find(x=>x[0]===S.os))S.os=t[0][0];
+  const t=[['ov','Overview',1],['pay','Payments',has('record_payments')||has('paid_list')],['data','Data tools',has('data_import')||has('data_export')],['roles','Roles',has('manage_roles')||S.role==='admin']].filter(x=>x[2]);if(!t.find(x=>x[0]===S.os))S.os=t[0][0];
   $('#main').innerHTML=`<div class="seg sub">${t.map(x=>`<button data-os="${x[0]}" class="${S.os===x[0]?'on':''}">${x[1]}</button>`).join('')}</div><div id="ob"></div>`;
-  document.querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{S.os=b.dataset.os;officer()});({ov,data:dataTools,roles:rolesTab})[S.os]();
+  document.querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{S.os=b.dataset.os;officer()});({ov,pay:payTab,data:dataTools,roles:rolesTab})[S.os]();
 }
 const pct=c=>{const t=c.col+c.out;return t?Math.round(c.col/t*100):100},bar=(p,c='')=>`<div class="pb"><i class="${c}" style="width:${Math.min(p,100)}%"></i></div>`;
 async function ov(){
@@ -112,6 +112,47 @@ async function ov(){
   <h2>Figures</h2><div class="tiles"><div class="panel"><small>Total outstanding</small><div class="n owe">${php(to)}</div></div><div class="panel"><small>Students owing</small><div class="n">${(s.stu||{}).owing??'–'}</div></div><div class="panel"><small>Collection rate</small><div class="n">${tc+to?Math.round(tc/(tc+to)*100):100}%</div></div></div>
   <div class="panel"><b>Where the money is</b><div class="stack">${sp.map(x=>`<i class="${x[2]}" style="width:${(x[1]||0)/st*100}%"></i>`).join('')}</div><div class="leg">${sp.map(x=>`<span><i class="${x[2]}"></i>${x[0]} ${php(x[1])}</span>`).join('')}</div></div>
   <div class="panel"><b>Outstanding by collection</b>${cols.filter(c=>c.out>0).map(c=>`<div class="hb"><span>${esc(c.l)}</span><div class="pb"><i class="o" style="width:${c.out/mx*100}%"></i></div><small>${php(c.out)}</small></div>`).join('')||'<p class="muted">Nothing outstanding.</p>'}</div>`;
+}
+
+/* ---------- Payments: record + paid list ---------- */
+const today=()=>new Date().toISOString().slice(0,10),rem=i=>Math.max(i.due-i.paid,0);
+async function payTab(){
+  const b=$('#ob'),rec=has('record_payments'),pl=has('paid_list');
+  b.innerHTML=`${rec?`<h2>Record a payment</h2><form id="pf" class="find"><input id="pq" placeholder="Name or ID" autocomplete="off"><button class="btn">Search</button></form><div id="pr"></div><h2>Recent payments</h2><div id="lg" class="muted">Loading…</div>`:''}
+  ${pl?`<h2>Paid list (for clearance)</h2><label>Collection</label><select id="pl">${LABELS.map(l=>`<option>${esc(l)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="pp"> Include partial payments</label><div class="find"><button class="btn" id="lp">${ic('dl',18)}&nbsp;PDF</button><button class="btn ghost" id="lx">${ic('dl',18)}&nbsp;Excel</button></div><p class="hint">Columns: No., Name, ID, Amount paid and a blank Signature column.</p>`:''}`;
+  if(rec){$('#pf').onsubmit=async e=>{e.preventDefault();const q=$('#pq').value.trim(),o=$('#pr');if(q.length<2)return toast('Type at least 2 letters or digits');o.innerHTML='<p class="muted">Searching…</p>';
+      const {data,error}=await db.rpc('cf_find',{p_q:q});if(error)return o.innerHTML=`<p class="owe">${esc(error.message)}</p>`;
+      o.innerHTML=(data||[]).map((s,i)=>`<button class="res" data-i="${i}"><b>${esc(s.name)}</b><small>${esc(s.sid_show)} · owes ${php((s.items||[]).reduce((a,x)=>a+rem(x),0))}</small></button>`).join('')||'<p class="muted">No match. Check the spelling or try the ID.</p>';
+      o.querySelectorAll('.res').forEach(x=>x.onclick=()=>payForm(data[x.dataset.i]))};logView()}
+  if(pl){$('#lp').onclick=()=>paidList('pdf');$('#lx').onclick=()=>paidList('xlsx')}
+}
+function payForm(s){
+  const its=[...(s.items||[])].sort((a,c)=>(rem(c)>0)-(rem(a)>0)),o=$('#pr');
+  o.innerHTML=`<div class="panel"><b>${esc(s.name)}</b> <small class="muted">${esc(s.sid_show)}</small><label>Collection</label><select id="pc">${its.map(i=>`<option value="${esc(i.l)}">${esc(i.l)}${rem(i)?' · owes '+php(rem(i)):' · settled'}</option>`).join('')}</select>
+  <label>Amount received (₱)</label><input id="pa" type="number" inputmode="decimal" min="1" step="1"><label>Date</label><input id="pd" type="date" value="${today()}"><label>Note (optional)</label><input id="pn" maxlength="200" placeholder="e.g. GCash ref"><p><button class="btn" id="ps">Save payment</button></p></div>`;
+  const fill=()=>{const i=its.find(x=>x.l===$('#pc').value);$('#pa').value=i&&rem(i)?rem(i):''};fill();$('#pc').onchange=fill;
+  $('#ps').onclick=async()=>{const a=+$('#pa').value,l=$('#pc').value,i=its.find(x=>x.l===l);if(!(a>0))return toast('Enter an amount above zero');
+    if(i&&rem(i)&&a>rem(i)&&$('#ps').dataset.ok!=='1'){$('#ps').dataset.ok='1';return $('#ps').textContent=`Only ${php(rem(i))} is owed. Tap again to save ${php(a)}`}
+    const {error}=await db.rpc('cf_record',{p_sid:s.sid,p_label:l,p_amount:a,p_date:$('#pd').value||today(),p_note:$('#pn').value});
+    if(error)return toast(error.message);toast(`Saved ${php(a)} for ${s.name}`);o.innerHTML='';$('#pq').value='';logView()}
+}
+async function logView(){
+  const g=$('#lg');if(!g)return;const {data,error}=await db.rpc('cf_pay_log');if(error)return g.textContent=error.message;
+  g.className='';g.innerHTML=`${(data.recent||[]).map(p=>`<div class="row ${p.undone?'strike':''}"><span>${esc(p.name)}<small class="muted"> ${esc(p.label)} · ${php(p.amount)} · ${esc(p.paid_on)}</small></span>${p.undone?'<span class="badge">undone</span>':p.in_excel?'<span class="badge">in Excel</span>':`<button class="link" data-u="${p.id}">Undo</button>`}</div>`).join('')||'<p class="muted">No payments recorded yet.</p>'}
+  ${data.unsynced?`<p class="hint">${data.unsynced} payment(s) are in the app but not yet in your Excel. They are kept when you import the Excel, until you mark them as in Excel.</p><div class="find"><button class="btn ghost" id="ue">${ic('dl',18)}&nbsp;Export for Excel</button><button class="btn ghost" id="um">Mark all as in Excel</button></div>`:''}`;
+  g.querySelectorAll('[data-u]').forEach(x=>x.onclick=async()=>{if(x.dataset.c!=='1'){x.dataset.c='1';return x.textContent='Tap to confirm'}const {error}=await db.rpc('cf_undo',{p_id:+x.dataset.u});toast(error?error.message:'Payment undone');logView()});
+  if(data.unsynced){$('#ue').onclick=async()=>{const {data:d,error}=await db.rpc('cf_unsynced');if(error)return toast(error.message);const w=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['ID','Name','Collection','Amount','Date'],...d.map(x=>[x.sid_show,x.name,x.label,x.amount,x.paid_on])]),'Payments');XLSX.writeFile(w,'payments-to-enter.xlsx')};
+    $('#um').onclick=async e=>{if(e.target.dataset.c!=='1'){e.target.dataset.c='1';return e.target.textContent='Tap again: they are in my Excel'}const {error}=await db.rpc('cf_mark_synced');toast(error?error.message:'Marked');logView()}}
+}
+async function paidList(fmt){
+  const l=$('#pl').value,part=$('#pp').checked,{data,error}=await db.rpc('cf_paid_list',{p_label:l,p_partial:part});if(error)return toast(error.message);if(!data.length)return toast('Nobody has paid this collection yet');
+  const amt=r=>part&&r.paid<r.due?`${r.paid} of ${r.due}`:String(r.paid),rows=data.map((r,i)=>[i+1,r.name,r.sid,amt(r)]),d=new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),fn='paid-list-'+l.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  if(fmt==='xlsx'){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['No.','Name','ID','Amount paid (PHP)','Signature'],...rows.map(r=>[...r,''])]),'Paid');return XLSX.writeFile(w,fn+'.xlsx')}
+  if(!window.jspdf)return toast('PDF tool not loaded. Connect to the internet once and retry.');
+  const {jsPDF}=window.jspdf,p=new jsPDF();p.setFontSize(15);p.text('Class Funds - Paid list',14,16);p.setFontSize(10);p.text(`${l}  |  ${data.length} student(s)  |  as of ${d}`,14,23);
+  p.autoTable({startY:28,head:[['No.','Name','ID','Amount paid (PHP)','Signature']],body:rows.map(r=>[...r,'']),styles:{fontSize:9,cellPadding:3,minCellHeight:10,lineColor:[200,200,200],lineWidth:.1},headStyles:{fillColor:[79,70,229]},columnStyles:{0:{cellWidth:12},2:{cellWidth:26},3:{cellWidth:30},4:{cellWidth:45}}});
+  p.setFontSize(10);p.text('Prepared by: ______________________      Date: ______________',14,Math.min(p.lastAutoTable.finalY+16,285));p.save(fn+'.pdf');
 }
 /* parse tracker */
 function parseXlsx(buf){
@@ -140,10 +181,10 @@ function dataTools(){
       const rows=d.students.map(s=>{const v=LABELS.map(l=>{const i=s.items.find(x=>x.l===l);return i?bal(i):''});return[s.sid_show,s.name,s.status,...v,v.reduce((a,x)=>a+(+x||0),0)]});
       const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([H,...rows]),'Balances');XLSX.writeFile(w,'class-funds-balances.xlsx')}catch(e){toast(e.message)}}}
   if(im)$('#fi').onchange=async e=>{const f=e.target.files[0],pv=$('#pv');if(!f)return;pv.textContent='Reading file…';let r;
-    try{if(/\.json$/i.test(f.name)){const j=JSON.parse(await f.text());if(!Array.isArray(j.students))throw Error('Not a backup file.');r={students:j.students,skip:[],summary:j.summary||{},asOf:j.as_of}}else r=parseXlsx(await f.arrayBuffer())}catch(x){return pv.innerHTML=`<p class="owe">${esc(x.message)}</p>`}
-    const fu=(r.summary||{}).fund||{};pv.innerHTML=`<div class="panel"><b>Preview</b><p class="muted">${r.students.length} students · ${(r.summary.stu||{}).owing??'?'} with a balance · cash on hand ${php(fu.cash)}${r.skip.length?'<br>Skipped (no ID): '+esc(r.skip.join('; ')):''}<br>This replaces all balances in the app.</p><div class="find"><button class="btn" id="ap">Apply</button><button class="btn ghost" id="ca">Cancel</button></div></div>`;
+    try{if(/\.json$/i.test(f.name)){const j=JSON.parse(await f.text());if(!Array.isArray(j.students))throw Error('Not a backup file.');r={students:j.students,skip:[],summary:j.summary||{},asOf:j.as_of,json:1}}else r=parseXlsx(await f.arrayBuffer())}catch(x){return pv.innerHTML=`<p class="owe">${esc(x.message)}</p>`}
+    const fu=(r.summary||{}).fund||{};pv.innerHTML=`<div class="panel"><b>Preview</b><p class="muted">${r.students.length} students · ${(r.summary.stu||{}).owing??'?'} with a balance · cash on hand ${php(fu.cash)}${r.skip.length?'<br>Skipped (no ID): '+esc(r.skip.join('; ')):''}<br>This replaces all balances in the app.${r.json?'':' Payments recorded in the app but not yet marked as in Excel are added back on top.'}</p><div class="find"><button class="btn" id="ap">Apply</button><button class="btn ghost" id="ca">Cancel</button></div></div>`;
     $('#ca').onclick=()=>{pv.innerHTML='';$('#fi').value=''};
-    $('#ap').onclick=async()=>{const {error}=await db.rpc('cf_import',{p_students:r.students,p_summary:r.summary,p_as_of:r.asOf||new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'})});pv.innerHTML=error?`<p class="owe">Import failed: ${esc(error.message)}</p>`:`<p class="ok">Imported ${r.students.length} students.</p>`}};
+    $('#ap').onclick=async()=>{const {data,error}=await db.rpc('cf_import',{p_students:r.students,p_summary:r.summary,p_as_of:r.asOf||new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'}),p_reapply:!r.json});ls.s('ov',null);pv.innerHTML=error?`<p class="owe">Import failed: ${esc(error.message)}</p>`:`<p class="ok">Imported ${r.students.length} students.${data?` Added back ${data} payments not yet in Excel.`:''}</p>`}};
 }
 async function rolesTab(){
   const b=$('#ob'),adm=S.role==='admin',{data:us,error}=await db.from('cf_profiles').select('user_id,name,sid,role').order('name');if(error)return b.innerHTML=`<p class="muted">${esc(error.message)}</p>`;

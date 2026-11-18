@@ -50,3 +50,6 @@ nav{overflow-x:auto;justify-content:space-around}nav button{min-width:56px;max-w
 .msgs.rows{gap:0}.msgs.rows .b{max-width:100%;align-self:stretch;border-radius:0;border-width:0 0 1px;background:var(--panel);padding:10px 4px}.msgs.rows .b.me{background:var(--panel);color:inherit;border-color:var(--line)}.msgs.rows .b.me small{color:var(--mu)}
 .msgs.pills .b{border-radius:22px;padding:8px 16px}.b.pend{opacity:.55}#cf{bottom:calc(60px + env(safe-area-inset-bottom))}
 @media(max-width:380px){.tiles{grid-template-columns:1fr 1fr}.hb{grid-template-columns:1fr auto}.hb .pb{grid-column:1/-1;order:3}}
+
+.res{display:flex;flex-direction:column;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-top:8px;min-height:52px}.res small{color:var(--mu)}.strike{opacity:.45;text-decoration:line-through}
+.row small{display:block}.row .link{padding:4px 0}
