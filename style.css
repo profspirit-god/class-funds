@@ -53,3 +53,4 @@ nav{overflow-x:auto;justify-content:space-around}nav button{min-width:56px;max-w
 
 .res{display:flex;flex-direction:column;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-top:8px;min-height:52px}.res small{color:var(--mu)}.strike{opacity:.45;text-decoration:line-through}
 .row small{display:block}.row .link{padding:4px 0}
+.mx.pl td:nth-child(2){text-align:left}.mx.pl td:first-child{text-align:center;color:var(--mu)}.mx.pl th:nth-child(2){text-align:left}

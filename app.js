@@ -119,12 +119,12 @@ const today=()=>new Date().toISOString().slice(0,10),rem=i=>Math.max(i.due-i.pai
 async function payTab(){
   const b=$('#ob'),rec=has('record_payments'),pl=has('paid_list');
   b.innerHTML=`${rec?`<h2>Record a payment</h2><form id="pf" class="find"><input id="pq" placeholder="Name or ID" autocomplete="off"><button class="btn">Search</button></form><div id="pr"></div><h2>Recent payments</h2><div id="lg" class="muted">Loading…</div>`:''}
-  ${pl?`<h2>Paid list (for clearance)</h2><label>Collection</label><select id="pl">${LABELS.map(l=>`<option>${esc(l)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="pp"> Include partial payments</label><div class="find"><button class="btn" id="lp">${ic('dl',18)}&nbsp;PDF</button><button class="btn ghost" id="lx">${ic('dl',18)}&nbsp;Excel</button></div><p class="hint">Columns: No., Name, ID, Amount paid and a blank Signature column.</p>`:''}`;
+  ${pl?`<h2>Paid list (for clearance)</h2><label>Collection</label><select id="pl">${LABELS.map(l=>`<option>${esc(l)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="pp"> Include partial payments</label><div class="find"><button class="btn" id="lp">${ic('dl',18)}&nbsp;PDF</button><button class="btn ghost" id="lx">${ic('dl',18)}&nbsp;Excel</button></div><div id="pvl"></div><p class="hint">The PDF and Excel add a blank Signature column.</p>`:''}`;
   if(rec){$('#pf').onsubmit=async e=>{e.preventDefault();const q=$('#pq').value.trim(),o=$('#pr');if(q.length<2)return toast('Type at least 2 letters or digits');o.innerHTML='<p class="muted">Searching…</p>';
       const {data,error}=await db.rpc('cf_find',{p_q:q});if(error)return o.innerHTML=`<p class="owe">${esc(error.message)}</p>`;
       o.innerHTML=(data||[]).map((s,i)=>`<button class="res" data-i="${i}"><b>${esc(s.name)}</b><small>${esc(s.sid_show)} · owes ${php((s.items||[]).reduce((a,x)=>a+rem(x),0))}</small></button>`).join('')||'<p class="muted">No match. Check the spelling or try the ID.</p>';
       o.querySelectorAll('.res').forEach(x=>x.onclick=()=>payForm(data[x.dataset.i]))};logView()}
-  if(pl){$('#lp').onclick=()=>paidList('pdf');$('#lx').onclick=()=>paidList('xlsx')}
+  if(pl){$('#lp').onclick=()=>paidList('pdf');$('#lx').onclick=()=>paidList('xlsx');$('#pl').onchange=$('#pp').onchange=pvList;pvList()}
 }
 function payForm(s){
   const its=[...(s.items||[])].sort((a,c)=>(rem(c)>0)-(rem(a)>0)),o=$('#pr');
@@ -144,6 +144,11 @@ async function logView(){
   if(data.unsynced){$('#ue').onclick=async()=>{const {data:d,error}=await db.rpc('cf_unsynced');if(error)return toast(error.message);const w=XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['ID','Name','Collection','Amount','Date'],...d.map(x=>[x.sid_show,x.name,x.label,x.amount,x.paid_on])]),'Payments');XLSX.writeFile(w,'payments-to-enter.xlsx')};
     $('#um').onclick=async e=>{if(e.target.dataset.c!=='1'){e.target.dataset.c='1';return e.target.textContent='Tap again: they are in my Excel'}const {error}=await db.rpc('cf_mark_synced');toast(error?error.message:'Marked');logView()}}
+}
+async function pvList(){
+  const o=$('#pvl');if(!o)return;o.innerHTML='<p class="muted">Loading…</p>';const {data,error}=await db.rpc('cf_paid_list',{p_label:$('#pl').value,p_partial:$('#pp').checked});
+  if(error)return o.innerHTML=`<p class="owe">${esc(error.message)}</p>`;
+  o.innerHTML=data.length?`<div class="panel slim"><b>${data.length} student${data.length>1?'s':''}</b> <small class="muted">${$('#pp').checked?'paid in full or partly':'paid in full'}</small><div class="scroll"><table class="mx pl"><tr><th>No.</th><th>Name</th><th>ID</th><th>Paid</th></tr>${data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${esc(r.sid)}</td><td>${r.paid<r.due?php(r.paid)+' of '+php(r.due):php(r.paid)}</td></tr>`).join('')}</table></div></div>`:'<p class="muted">Nobody has paid this collection yet.</p>';
 }
 async function paidList(fmt){
   const l=$('#pl').value,part=$('#pp').checked,{data,error}=await db.rpc('cf_paid_list',{p_label:l,p_partial:part});if(error)return toast(error.message);if(!data.length)return toast('Nobody has paid this collection yet');
