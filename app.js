@@ -7,7 +7,7 @@ const FEE_DUES=[40,20]; // Membership, Activity (change if wrong)
 const intramsDue=a=>{a=String(a||'').toLowerCase();return/both/.test(a)?0:/only/.test(a)?25:/absent/.test(a)?50:null};
 const EVENT_DUES=[50,25]; // amount every student must pay for the two event columns
 const BUL='00000000-0000-0000-0000-00000000b011',ROLES=['visitor','student','officer','admin'];
-const PERMS=[['chat','Chat'],['officer_dash','Officer'],['data_export','Export'],['data_import','Import'],['manage_roles','Roles'],['record_payments','Record'],['paid_list','Paid list']];
+const PERMS=[['chat','Chat'],['officer_dash','Officer'],['data_export','Export'],['data_import','Import'],['manage_roles','Roles'],['record_payments','Record'],['paid_list','Paid list'],['remit','Remit']];
 const db=supabase.createClient(SUPA_URL,SUPA_KEY);
 const $=s=>document.querySelector(s),S={tab:'home',online:0,view:null,perms:[],os:'ov',seg:'tr',lay:localStorage.getItem('lay')||'pills'};
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -96,17 +96,17 @@ function settings(){
 }
 /* ---------- Officer dashboard ---------- */
 function officer(){
-  const t=[['ov','Overview',1],['pay','Payments',has('record_payments')||has('paid_list')],['data','Data tools',has('data_import')||has('data_export')],['roles','Roles',has('manage_roles')||S.role==='admin']].filter(x=>x[2]);if(!t.find(x=>x[0]===S.os))S.os=t[0][0];
+  const t=[['ov','Overview',1],['pay','Payments',has('record_payments')||has('paid_list')],['remit','Remit',has('remit')],['data','Data tools',has('data_import')||has('data_export')],['roles','Roles',has('manage_roles')||S.role==='admin']].filter(x=>x[2]);if(!t.find(x=>x[0]===S.os))S.os=t[0][0];
   $('#main').innerHTML=`<div class="seg sub">${t.map(x=>`<button data-os="${x[0]}" class="${S.os===x[0]?'on':''}">${x[1]}</button>`).join('')}</div><div id="ob"></div>`;
-  document.querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{S.os=b.dataset.os;officer()});({ov,pay:payTab,data:dataTools,roles:rolesTab})[S.os]();
+  document.querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{S.os=b.dataset.os;officer()});({ov,pay:payTab,remit:remitTab,data:dataTools,roles:rolesTab})[S.os]();
 }
 const pct=c=>{const t=c.col+c.out;return t?Math.round(c.col/t*100):100},bar=(p,c='')=>`<div class="pb"><i class="${c}" style="width:${Math.min(p,100)}%"></i></div>`;
 async function ov(){
   const b=$('#ob');b.innerHTML='<p class="muted">Loading…</p>';let o;
   try{o=await cached('ov',()=>db.rpc('cf_overview'))}catch(e){return b.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
   const s=o.summary||{},f=s.fund||{},cols=s.cols||[];if(!cols.length)return b.innerHTML='<div class="panel">No data yet. Import the tracker in Data tools.</div>';
-  const cur=cols.find(c=>c.l===o.current)||cols[2]||cols[0],tc=cols.reduce((a,c)=>a+c.col,0),to=cols.reduce((a,c)=>a+c.out,0),sp=[['Cash',f.cash,'g'],['Spent',f.expenses,'o'],['Remitted',f.remitted,'p']],st=sp.reduce((a,x)=>a+(x[1]||0),0)||1,mx=Math.max(...cols.map(c=>c.out),1);
-  b.innerHTML=`<div class="banner"><span>Cash on hand</span><div class="big">${php(f.cash)}</div><span class="sub">${o.as_of?'As of '+esc(o.as_of):''}</span><div class="chips2"><span>Collected ${php(f.collected)}</span><span>Spent ${php(f.expenses)}</span><span>Remitted ${php(f.remitted)}</span></div></div>
+  const rr=remitRows(o),tl=rr.reduce((a,x)=>a+x.left,0),cur=cols.find(c=>c.l===o.current)||cols[2]||cols[0],tc=cols.reduce((a,c)=>a+c.col,0),to=cols.reduce((a,c)=>a+c.out,0),sp=[['Cash',f.cash,'g'],['Spent',f.expenses,'o'],['Remitted',f.remitted,'p']],st=sp.reduce((a,x)=>a+(x[1]||0),0)||1,mx=Math.max(...cols.map(c=>c.out),1);
+  b.innerHTML=`<div class="banner"><span>Cash on hand</span><div class="big">${php(f.cash)}</div><span class="sub">${o.as_of?'As of '+esc(o.as_of):''}</span><div class="chips2"><span>Collected ${php(f.collected)}</span><span>Spent ${php(f.expenses)}</span><span>Remitted ${php(f.remitted)}</span>${rr.length?`<span>To remit ${php(tl)}</span>`:''}</div></div>${rr.length?remitCard(rr,tl):''}
   <h2>Current collection</h2><div class="panel"><b>${esc(cur.l)}</b><div class="two"><div><small>Collected</small><div class="n ok">${php(cur.col)}</div></div><div><small>Outstanding</small><div class="n owe">${php(cur.out)}</div></div></div>${bar(pct(cur))}<small>${pct(cur)}% collected${cur.unpaid!=null?' · '+cur.unpaid+' students with a balance':''}</small></div>
   <h2>All collections</h2>${cols.map(c=>`<div class="panel slim"><div class="row"><b>${esc(c.l)}</b><span class="muted">${pct(c)}%</span></div>${bar(pct(c))}<div class="row"><small>Collected ${php(c.col)}</small><small class="${c.out?'owe':''}">Outstanding ${php(c.out)}</small></div></div>`).join('')}
   <h2>Figures</h2><div class="tiles"><div class="panel"><small>Total outstanding</small><div class="n owe">${php(to)}</div></div><div class="panel"><small>Students owing</small><div class="n">${(s.stu||{}).owing??'–'}</div></div><div class="panel"><small>Collection rate</small><div class="n">${tc+to?Math.round(tc/(tc+to)*100):100}%</div></div></div>
@@ -139,10 +139,10 @@ function payForm(s){
 async function logView(){
   const g=$('#lg');if(!g)return;const {data,error}=await db.rpc('cf_pay_log');if(error)return g.textContent=error.message;
   g.className='';g.innerHTML=`${(data.recent||[]).map(p=>`<div class="row ${p.undone?'strike':''}"><span>${esc(p.name)}<small class="muted"> ${esc(p.label)} · ${php(p.amount)} · ${esc(p.paid_on)}</small></span>${p.undone?'<span class="badge">undone</span>':p.in_excel?'<span class="badge">in Excel</span>':`<button class="link" data-u="${p.id}">Undo</button>`}</div>`).join('')||'<p class="muted">No payments recorded yet.</p>'}
-  ${data.unsynced?`<p class="hint">${data.unsynced} payment(s) are in the app but not yet in your Excel. They are kept when you import the Excel, until you mark them as in Excel.</p><div class="find"><button class="btn ghost" id="ue">${ic('dl',18)}&nbsp;Export for Excel</button><button class="btn ghost" id="um">Mark all as in Excel</button></div>`:''}`;
+  ${data.unsynced?`<p class="hint">${data.unsynced} entr${data.unsynced>1?'ies are':'y is'} in the app but not yet in your Excel. They are kept when you import the Excel, until you mark them as in Excel.</p><div class="find"><button class="btn ghost" id="ue">${ic('dl',18)}&nbsp;Export for Excel</button><button class="btn ghost" id="um">Mark all as in Excel</button></div>`:''}`;
   g.querySelectorAll('[data-u]').forEach(x=>x.onclick=async()=>{if(x.dataset.c!=='1'){x.dataset.c='1';return x.textContent='Tap to confirm'}const {error}=await db.rpc('cf_undo',{p_id:+x.dataset.u});toast(error?error.message:'Payment undone');logView()});
   if(data.unsynced){$('#ue').onclick=async()=>{const {data:d,error}=await db.rpc('cf_unsynced');if(error)return toast(error.message);const w=XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['ID','Name','Collection','Amount','Date'],...d.map(x=>[x.sid_show,x.name,x.label,x.amount,x.paid_on])]),'Payments');XLSX.writeFile(w,'payments-to-enter.xlsx')};
+      XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([['Type','ID','Name','Collection','Amount','Date'],...d.map(x=>[x.kind,x.sid_show||'',x.name,x.label,x.amount,x.d])]),'Payments');XLSX.writeFile(w,'payments-to-enter.xlsx')};
     $('#um').onclick=async e=>{if(e.target.dataset.c!=='1'){e.target.dataset.c='1';return e.target.textContent='Tap again: they are in my Excel'}const {error}=await db.rpc('cf_mark_synced');toast(error?error.message:'Marked');logView()}}
 }
 async function pvList(){
@@ -158,6 +158,23 @@ async function paidList(fmt){
   const {jsPDF}=window.jspdf,p=new jsPDF();p.setFontSize(15);p.text('Class Funds - Paid list',14,16);p.setFontSize(10);p.text(`${l}  |  ${data.length} student(s)  |  as of ${d}`,14,23);
   p.autoTable({startY:28,head:[['No.','Name','ID','Amount paid (PHP)','Signature']],body:rows.map(r=>[...r,'']),styles:{fontSize:9,cellPadding:3,minCellHeight:10,lineColor:[200,200,200],lineWidth:.1},headStyles:{fillColor:[79,70,229]},columnStyles:{0:{cellWidth:12},2:{cellWidth:26},3:{cellWidth:30},4:{cellWidth:45}}});
   p.setFontSize(10);p.text('Prepared by: ______________________      Date: ______________',14,Math.min(p.lastAutoTable.finalY+16,285));p.save(fn+'.pdf');
+}
+
+/* ---------- Remittance ---------- */
+const remitRows=o=>{const rp=o.remit||{},rm=o.remitted||{};return((o.summary||{}).cols||[]).filter(c=>+rp[c.l]>0).map(c=>{const should=Math.round(c.col*rp[c.l])/100,sent=+rm[c.l]||0;return{l:c.l,p:+rp[c.l],col:c.col,should,sent,left:Math.max(should-sent,0),over:Math.max(sent-should,0)}})};
+const remitCard=(rr,tl)=>`<h2>To remit</h2><div class="panel"><div class="row"><b>Still to remit</b><span class="n ${tl?'owe':'ok'}">${php(tl)}</span></div><small class="muted">The remit share of what each collection has collected, minus what you already handed over.</small>${rr.map(x=>`<div class="rm"><div class="row"><b>${esc(x.l)}</b><span class="badge">${x.p}%</span></div><div class="pb"><i style="width:${x.should?Math.min(x.sent/x.should*100,100):100}%"></i></div><div class="row"><small>Collected ${php(x.col)} · remit share ${php(x.should)}</small></div><div class="row"><small>Remitted ${php(x.sent)}</small><small class="${x.left?'owe':'ok'}"><b>${x.left?'To remit '+php(x.left):x.over?'Over by '+php(x.over):'Fully remitted'}</b></small></div></div>`).join('')}</div>`;
+async function remitTab(){
+  const b=$('#ob');b.innerHTML='<p class="muted">Loading…</p>';const [a,l]=await Promise.all([db.rpc('cf_overview'),db.rpc('cf_remit_log')]);
+  if(a.error||l.error)return b.innerHTML=`<p class="owe">${esc((a.error||l.error).message)}</p>`;
+  const rr=remitRows(a.data),tl=rr.reduce((x,y)=>x+y.left,0),left=k=>rr.find(x=>x.l===k)?.left||0;
+  b.innerHTML=`${rr.length?remitCard(rr,tl):'<div class="panel muted">No remit shares are set yet. Set them in Admin.</div>'}<h2>Record a remittance</h2><label>Collection</label><select id="rc">${[...rr.map(x=>x.l),...LABELS.filter(k=>!rr.some(x=>x.l===k))].map(k=>`<option>${esc(k)}</option>`).join('')}</select>
+  <label>Amount handed over (₱)</label><input id="ra" type="number" inputmode="decimal" min="1"><label>Date</label><input id="rd" type="date" value="${today()}"><label>Recipient or note</label><input id="rn" maxlength="200" placeholder="e.g. CBMA treasurer"><p><button class="btn" id="rs">Save remittance</button></p>
+  <h2>History</h2>${(l.data||[]).map(r=>`<div class="row ${r.undone?'strike':''}"><span>${esc(r.label)}<small class="muted"> ${php(r.amount)} · ${esc(r.sent_on)}${r.note?' · '+esc(r.note):''}</small></span>${r.undone?'<span class="badge">undone</span>':r.in_excel?'<span class="badge">in Excel</span>':`<button class="link" data-u="${r.id}">Undo</button>`}</div>`).join('')||'<p class="muted">Nothing recorded yet.</p>'}`;
+  const fill=()=>{const v=left($('#rc').value);$('#ra').value=v||''};fill();$('#rc').onchange=fill;
+  $('#rs').onclick=async()=>{const v=+$('#ra').value,k=$('#rc').value;if(!(v>0))return toast('Enter an amount above zero');
+    if(v>left(k)&&$('#rs').dataset.ok!=='1'){$('#rs').dataset.ok='1';return $('#rs').textContent=`Only ${php(left(k))} is left to remit. Tap again to save ${php(v)}`}
+    const {error}=await db.rpc('cf_remit',{p_label:k,p_amount:v,p_date:$('#rd').value||today(),p_note:$('#rn').value});if(error)return toast(error.message);toast('Remittance saved');ls.s('ov',null);remitTab()};
+  b.querySelectorAll('[data-u]').forEach(x=>x.onclick=async()=>{if(x.dataset.c!=='1'){x.dataset.c='1';return x.textContent='Tap to confirm'}const {error}=await db.rpc('cf_remit_undo',{p_id:+x.dataset.u});toast(error?error.message:'Undone');remitTab()});
 }
 /* parse tracker */
 function parseXlsx(buf){
@@ -203,14 +220,14 @@ async function rolesTab(){
   b.querySelectorAll('[data-r]').forEach(c=>c.onchange=async()=>{const {error}=await db.from('cf_perms').upsert({role:c.dataset.r,perm:c.dataset.p,allowed:c.checked});toast(error?error.message:'Saved')});
 }
 async function admin(){
-  const m=$('#main');let c;try{c=await cached('cfg',()=>db.from('cf_config').select('as_of,announcement,hidden,dates,current').eq('id',1).single())}catch(e){return m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
+  const m=$('#main');let c;try{c=await cached('cfg',()=>db.from('cf_config').select('as_of,announcement,hidden,dates,current,remit').eq('id',1).single())}catch(e){return m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
   const hid=c.hidden||[],dt=c.dates||{};
   m.innerHTML=`<p class="hi">Admin</p><p class="muted">Import data and manage people in the Officer tab.</p>
-  <h2>Dashboard display</h2><label>As of (text shown to students)</label><input id="ao" value="${esc(c.as_of)}"><label>Announcement (optional)</label><textarea id="an" rows="2">${esc(c.announcement)}</textarea><label>Current collection (officer dashboard)</label><select id="cu">${LABELS.map(l=>`<option ${c.current===l?'selected':''}>${esc(l)}</option>`).join('')}</select><label>Show items and due dates</label>
+  <h2>Dashboard display</h2><label>As of (text shown to students)</label><input id="ao" value="${esc(c.as_of)}"><label>Announcement (optional)</label><textarea id="an" rows="2">${esc(c.announcement)}</textarea><label>Current collection (officer dashboard)</label><select id="cu">${LABELS.map(l=>`<option ${c.current===l?'selected':''}>${esc(l)}</option>`).join('')}</select><label>Share of each collection to remit (%)</label>${LABELS.map((l,i)=>`<div class="row"><span>${esc(l)}</span><input type="number" inputmode="decimal" min="0" max="100" data-rp="${i}" value="${(c.remit||{})[l]||0}"></div>`).join('')}<label>Show items and due dates</label>
   ${LABELS.map((l,i)=>`<div class="row"><label class="chk"><input type="checkbox" data-h="${i}" ${hid.includes(l)?'':'checked'}>${esc(l)}</label><input data-d="${i}" placeholder="Due date" value="${esc(dt[l]||'')}"></div>`).join('')}<p><button class="btn" id="sv">Save display</button></p>
   <h2>Class code</h2><div class="find"><input id="nc" placeholder="New class code"><button class="btn" id="sc">Set</button></div>`;
   $('#sv').onclick=async()=>{const h=[],d={};LABELS.forEach((l,i)=>{if(!m.querySelector(`[data-h="${i}"]`).checked)h.push(l);const v=m.querySelector(`[data-d="${i}"]`).value.trim();if(v)d[l]=v});
-    const {error}=await db.from('cf_config').update({as_of:$('#ao').value,announcement:$('#an').value,hidden:h,dates:d,current:$('#cu').value}).eq('id',1);toast(error?error.message:'Saved')};
+    const rp={};LABELS.forEach((l,i)=>{const v=+m.querySelector(`[data-rp="${i}"]`).value;if(v>0)rp[l]=Math.min(v,100)});const {error}=await db.from('cf_config').update({as_of:$('#ao').value,announcement:$('#an').value,hidden:h,dates:d,current:$('#cu').value,remit:rp}).eq('id',1);toast(error?error.message:'Saved')};
   $('#sc').onclick=async()=>{if($('#nc').value.length<4)return toast('Use at least 4 characters');const {error}=await db.rpc('cf_set_code',{p_code:$('#nc').value});toast(error?error.message:'Class code changed')};
 }
 addEventListener('online',()=>{updOff();flush();if(S.uid)go(S.tab)});addEventListener('offline',updOff);
