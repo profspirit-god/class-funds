@@ -22,7 +22,7 @@ const idOk=v=>/^\d{2}-?\d{5,6}$/.test(v.trim()),tm=t=>t?new Date(t).toLocaleTime
 async function cached(key,fn){try{const r=await fn();if(r.error)throw r.error;ls.s(key,{t:Date.now(),d:r.data});S.stale=null;updOff();return r.data}catch(e){const c=ls.g(key);if(c&&(!navigator.onLine||isNet(e))){S.stale=c.t;updOff();return c.d}throw e}}
 function updOff(){const o=$('#off');if(!o)return;const on=!navigator.onLine||S.stale;o.hidden=!on;if(on)o.lastChild.textContent=' Offline. Showing data saved '+(S.stale?new Date(S.stale).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'earlier')+'.'}
 const outbox=()=>ls.g('out')||[];
-async function flush(){const q=outbox();if(!q.length||!navigator.onLine)return;const rest=[];for(const x of q){const {error}=await db.from('cf_messages').insert(x);if(error)rest.push(x)}ls.s('out',rest);if(S.tab==='chat')chat()}
+let flushing=0;async function flush(){if(flushing||!outbox().length||!navigator.onLine)return;flushing=1;try{for(const x of outbox()){const {error}=await db.from('cf_messages').insert(x);if(error)break;ls.s('out',outbox().slice(1))}}finally{flushing=0}if(S.tab==='chat')chat()}
 async function send(x){if(!navigator.onLine){ls.s('out',[...outbox(),x]);return toast('Offline. Message will send when you reconnect.')}const {error}=await db.from('cf_messages').insert(x);if(error){if(isNet(error))ls.s('out',[...outbox(),x]);else toast(error.message)}}
 
 async function boot(){
@@ -34,7 +34,7 @@ async function boot(){
   if(!p)return onboard();Object.assign(S,p);
   try{S.perms=await cached('perms',()=>db.rpc('cf_my_perms'))||[]}catch{S.perms=[]}
   shell();if(navigator.onLine){presence();flush()}
-  db.channel('msgs').on('postgres_changes',{event:'INSERT',schema:'public',table:'cf_messages'},()=>{if(S.tab==='chat')chat()}).subscribe();
+  if(!S.live){S.live=1;db.channel('msgs').on('postgres_changes',{event:'INSERT',schema:'public',table:'cf_messages'},()=>{if(S.tab==='chat')chat()}).subscribe()}
 }
 function onboard(){
   $('#app').innerHTML=`<div class="wrap"><h1>Class Funds</h1><p class="muted">Check what you need to pay. Enter your details to start.</p>
@@ -42,10 +42,10 @@ function onboard(){
   <label>Student ID</label><input id="i" required inputmode="numeric" placeholder="YY-NNNNN (e.g. 24-03177)"><div class="hint">Format: two digits, a dash, then the rest of your ID number.</div>
   <label>Class code</label><input id="c" required placeholder="Ask your treasurer"><p><button class="btn" style="width:100%">Continue</button></p></form></div>`;
   $('#f').onsubmit=async e=>{e.preventDefault();if(!idOk($('#i').value))return toast('ID format should look like 24-03177');
-    const {error}=await db.rpc('cf_register',{p_name:$('#n').value,p_sid:$('#i').value,p_code:$('#c').value});
-    if(error)return toast(/wrong code/.test(error.message)?'Wrong class code':error.message);boot()};
+    const {data,error}=await db.rpc('cf_register',{p_name:$('#n').value,p_sid:$('#i').value,p_code:$('#c').value});
+    if(error)return toast(error.message);if(data==='WRONG')return toast('Wrong class code');if(data==='LOCKED')return toast('Too many wrong tries. Try again in 15 minutes.');boot()};
 }
-function presence(){try{const ch=db.channel('online',{config:{presence:{key:S.uid}}});
+function presence(){if(S.pres)return;S.pres=1;try{const ch=db.channel('online',{config:{presence:{key:S.uid}}});
   ch.on('presence',{event:'sync'},()=>{S.online=Object.keys(ch.presenceState()).length;const e=$('#eyeN');if(e)e.textContent=S.online}).subscribe(s=>{if(s==='SUBSCRIBED')ch.track({t:Date.now()})})}catch{}}
 function shell(){
   const T=[['home','Home','home',1],['chat','Chat','chat',has('chat')],['help','Help','help',1],['officer','Officer','chart',has('officer_dash')],['admin','Admin','shield',S.role==='admin']].filter(t=>t[3]);
@@ -64,7 +64,7 @@ function card(d){
 }
 async function home(){
   const m=$('#main'),k=S.view||S.sid;m.innerHTML='<p class="muted">Loading…</p>';let d;
-  try{d=await cached('home:'+k,()=>db.rpc('cf_lookup',{p_sid:k}))}catch(e){return m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
+  try{if(S.view){const r=await db.rpc('cf_lookup',{p_sid:k});if(r.error)throw r.error;d=r.data}else d=await cached('home:'+k,()=>db.rpc('cf_lookup',{p_sid:k}))}catch(e){return m.innerHTML=`<p class="muted">${esc(e.message)}</p>`}
   m.innerHTML=`<p class="hi">${S.view?'Classmate':'Hi, '+esc(S.name)}</p>${card(d)}<form id="sf" class="find"><input id="q" inputmode="numeric" placeholder="Classmate ID, e.g. 24-03177"><button class="btn">Find</button></form>${S.view?'<button class="link" id="me">Back to my balance</button>':''}`;
   $('#sf').onsubmit=e=>{e.preventDefault();if(!idOk($('#q').value))return toast('ID format should look like 24-03177');S.view=$('#q').value;home()};
   if(S.view)$('#me').onclick=()=>{S.view=null;home()};
@@ -115,7 +115,7 @@ async function ov(){
 }
 
 /* ---------- Payments: record + paid list ---------- */
-const today=()=>new Date().toISOString().slice(0,10),rem=i=>Math.max(i.due-i.paid,0);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},rem=i=>Math.max(i.due-i.paid,0);
 async function payTab(){
   const b=$('#ob'),rec=has('record_payments'),pl=has('paid_list');
   b.innerHTML=`${rec?`<h2>Record a payment</h2><form id="pf" class="find"><input id="pq" placeholder="Name or ID" autocomplete="off"><button class="btn">Search</button></form><div id="pr"></div><h2>Recent payments</h2><div id="lg" class="muted">Loading…</div>`:''}
